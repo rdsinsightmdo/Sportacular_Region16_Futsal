@@ -8,13 +8,13 @@
   ],
   "teams": {
     "A": [
-      "Tim 1",
+      "RO Manado",
       "Tim 2",
       "Tim 3",
       "Tim 4"
     ],
     "B": [
-      "Tim 5",
+      "RAO Manado",
       "Tim 6",
       "Tim 7",
       "Tim 8"
@@ -124,5 +124,5 @@
       "ap": ""
     }
   },
-  "updatedAt": "2026-11-03T05:21:45.968Z"
+  "updatedAt": "2026-11-03T05:24:21.207Z"
 }
