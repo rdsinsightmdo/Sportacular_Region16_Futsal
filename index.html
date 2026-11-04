@@ -140,6 +140,29 @@
   .pen-v{padding:6px 10px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);background:var(--pill);text-align:right}
   .notice{text-align:center;color:var(--muted);padding:30px 16px}
   @media (max-width:520px){ .sv{width:40px} .pills span{font-size:14px;padding:8px 16px} }
+
+  .groups{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+  .teams-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .bracket{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+  .stand tr.q3 td{background:#F1F8FF}
+  .stand tr.q3 td:first-child{box-shadow:inset 3px 0 0 var(--mentari)}
+  .tag.t3{background:var(--cakrawala)}
+  .tag.soft{background:var(--pill);color:var(--nusantara)}
+  .sv-x{display:inline-block;width:48px;padding:6px 0;text-align:center;font-weight:700;border-radius:6px;background:var(--pill);color:var(--nusantara)}
+  .sv.empty{background:var(--bg);color:var(--muted);font-weight:500}
+  .pen-v{padding:6px 10px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);background:var(--pill);text-align:right}
+  .third-card{max-width:760px;width:100%;justify-self:center}
+  @media (max-width:1100px){ .groups{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important} .bracket{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important} .bracket .col:last-child{grid-column:1/-1} }
+  @media (max-width:820px){ .groups,.bracket{grid-template-columns:minmax(0,1fr) !important} .teams-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+  @media (max-width:520px){ .teams-grid{grid-template-columns:minmax(0,1fr)} .sv{width:40px} }
+
+  .groups .stand{font-size:13px}
+  .groups .stand th,.groups .stand td{padding:7px 3px}
+  .groups .stand td.tm,.groups .stand th.tm{min-width:0;padding-left:6px}
+  .groups .card{padding:16px 14px}
+  .tag{white-space:nowrap}
+  .groups .match{grid-template-columns:24px minmax(0,1fr) 40px 10px 40px minmax(0,1fr);gap:5px;padding:6px}
+  .groups input.sc,.groups .sv{width:40px}
 </style>
 </head>
 <body>
@@ -162,14 +185,20 @@
 
 <main id="app"><section class="card notice">Memuat klasemen…</section></main>
 
-<script>
-const PAIRS = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
-const G = ['A','B'];
+<script>const EDIT = false;
 const REFRESH_MS = 30000;
 let S = null, lastJson = '';
+/* ===== Mesin turnamen: 12 tim, 3 grup, perempat final ===== */
+const PAIRS = [[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]];
+const G = ['A','B','C'];
+const KO_IDS = ['qf1','qf2','qf3','qf4','sf1','sf2','third','final'];
+/* Lawan juara grup A & B dari peringkat 3 terbaik, supaya tidak bertemu tim segrup */
+const THIRD_MAP = {AB:{X:'B',Y:'A'}, AC:{X:'C',Y:'A'}, BC:{X:'B',Y:'C'}};
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const blank = v => v===''||v==null;
+function blankKO(){ return {hs:'',as:'',hp:'',ap:''}; }
+const cmp = (a,b) => b.Pts-a.Pts || b.GD-a.GD || b.GF-a.GF || a.n.localeCompare(b.n);
 
 function standings(g){
   const t = S.teams[g].map((n,i)=>({i,n,P:0,W:0,D:0,L:0,GF:0,GA:0,GD:0,Pts:0}));
@@ -184,8 +213,16 @@ function standings(g){
     else{H.D++;A.D++;H.Pts++;A.Pts++;}
   });
   t.forEach(x=>x.GD=x.GF-x.GA);
-  t.sort((a,b)=>b.Pts-a.Pts||b.GD-a.GD||b.GF-a.GF||a.n.localeCompare(b.n));
+  t.sort(cmp);
   return {rows:t, played, done:played===PAIRS.length};
+}
+function thirdRank(){
+  const st = {}; G.forEach(g=>st[g]=standings(g));
+  const list = G.map(g=>Object.assign({g}, st[g].rows[2])).sort(cmp);
+  const allDone = G.every(g=>st[g].done);
+  const anyPlayed = G.some(g=>st[g].played>0);
+  const qual = list.slice(0,2).map(x=>x.g);
+  return {list, allDone, anyPlayed, qual};
 }
 function result(m){
   if(!m||blank(m.hs)||blank(m.as)) return null;
@@ -199,48 +236,112 @@ function slot(g,pos){
   if(s.played===0) return {n:null, tag:label};
   return {n:s.rows[pos].n, tag:label + (s.done?'':' (sementara)')};
 }
-function koPairs(){
-  const sf1 = {h:slot('A',0), a:slot('B',1)};
-  const sf2 = {h:slot('B',0), a:slot('A',1)};
-  const r1 = result(S.ko.sf1), r2 = result(S.ko.sf2);
-  const pick = (p,r,win) => r ? (win ? (r==='h'?p.h:p.a) : (r==='h'?p.a:p.h)) : null;
-  const w1 = pick(sf1,r1,true), l1 = pick(sf1,r1,false), w2 = pick(sf2,r2,true), l2 = pick(sf2,r2,false);
-  const T = (x,tag) => ({n:x?x.n:null, tag});
-  return {sf1, sf2,
-    final:{h:T(w1,'Pemenang SF 1'), a:T(w2,'Pemenang SF 2')},
-    third:{h:T(l1,'Kalah SF 1'), a:T(l2,'Kalah SF 2')} };
+function thirdSlot(which){
+  const tr = thirdRank();
+  if(!tr.anyPlayed) return {n:null, tag:'Peringkat 3 terbaik'};
+  const g = THIRD_MAP[tr.qual.slice().sort().join('')][which];
+  return {n:standings(g).rows[2].n, tag:'Peringkat 3 Grup '+g+(tr.allDone?'':' (sementara)')};
 }
-const sv = v => blank(v) ? '<span class="sv empty">–</span>' : `<span class="sv">${+v}</span>`;
+function koPairs(){
+  const P = {
+    qf1:{h:slot('A',0), a:thirdSlot('X')},
+    qf2:{h:slot('B',1), a:slot('C',1)},
+    qf3:{h:slot('B',0), a:thirdSlot('Y')},
+    qf4:{h:slot('C',0), a:slot('A',1)}
+  };
+  const pick = (id,win) => {
+    const p = P[id]; if(!(p.h.n&&p.a.n)) return null;
+    const r = result(S.ko[id]); if(!r) return null;
+    return (win ? (r==='h'?p.h:p.a) : (r==='h'?p.a:p.h)).n;
+  };
+  const T = (n,tag) => ({n, tag});
+  P.sf1 = {h:T(pick('qf1',1),'Pemenang PF 1'), a:T(pick('qf2',1),'Pemenang PF 2')};
+  P.sf2 = {h:T(pick('qf3',1),'Pemenang PF 3'), a:T(pick('qf4',1),'Pemenang PF 4')};
+  P.final = {h:T(pick('sf1',1),'Pemenang SF 1'), a:T(pick('sf2',1),'Pemenang SF 2')};
+  P.third = {h:T(pick('sf1',0),'Kalah SF 1'), a:T(pick('sf2',0),'Kalah SF 2')};
+  return P;
+}
 
-function groupHTML(g){
+/* ===== Tampilan (EDIT=true di admin, false di halaman user) ===== */
+function scoreCell(attrs, v, enabled, label){
+  if(EDIT) return `<input class="sc" type="number" min="0" inputmode="numeric" ${attrs} value="${blank(v)?'':v}" ${enabled?'':'disabled'} aria-label="${label||'Skor'}">`;
+  return (!enabled||blank(v)) ? '<span class="sv empty">–</span>' : `<span class="sv">${+v}</span>`;
+}
+function standHTML(g, tr){
   const s = standings(g);
-  return `<section class="card">
-    <div class="card-head"><h2>Grup ${g}</h2><span class="badge ${s.done?'done':''}">${s.done?'Grup selesai':s.played+'/'+PAIRS.length+' laga'}</span></div>
-    <div class="table-wrap"><table class="stand">
-      <thead><tr><th>#</th><th class="tm">Tim</th><th>Main</th><th>M</th><th>S</th><th>K</th><th>GM</th><th>GK</th><th>SG</th><th>Poin</th></tr></thead>
-      <tbody>${s.rows.map((r,i)=>`<tr class="${i<2?'q':''}"><td>${i+1}</td>
-        <td class="tm">${esc(r.n)}${i<2&&s.done?'<span class="tag">Lolos</span>':''}</td>
+  const thirdIn = tr.anyPlayed && tr.qual.includes(g);
+  return `
+    <thead><tr><th>#</th><th class="tm">Tim</th><th>Main</th><th>M</th><th>S</th><th>K</th><th>GM</th><th>GK</th><th>SG</th><th>Poin</th></tr></thead>
+    <tbody>${s.rows.map((r,i)=>{
+      const q = i<2, q3 = i===2 && thirdIn;
+      const tag = q && s.done ? '<span class="tag">Lolos</span>' : (q3 && tr.allDone ? '<span class="tag t3">Lolos</span>' : '');
+      return `<tr class="${q?'q':''}${q3?'q3':''}"><td>${i+1}</td>
+        <td class="tm">${esc(r.n)}${tag}</td>
         <td>${r.P}</td><td>${r.W}</td><td>${r.D}</td><td>${r.L}</td><td>${r.GF}</td><td>${r.GA}</td>
-        <td>${r.GD>0?'+'+r.GD:r.GD}</td><td class="pts">${r.Pts}</td></tr>`).join('')}</tbody>
-    </table></div>
+        <td>${r.GD>0?'+'+r.GD:r.GD}</td><td class="pts">${r.Pts}</td></tr>`;}).join('')}</tbody>`;
+}
+function badgeHTML(g){
+  const s = standings(g);
+  return `<span class="badge ${s.done?'done':''}">${s.done?'Grup selesai':s.played+'/'+PAIRS.length+' laga'}</span>`;
+}
+function groupHTML(g){
+  const tr = thirdRank();
+  return `
+    <div class="card-head"><h2>Grup ${g}</h2><span id="prog${g}">${badgeHTML(g)}</span></div>
+    <div class="table-wrap"><table class="stand" id="stand${g}">${standHTML(g,tr)}</table></div>
     <h3>Jadwal &amp; Hasil</h3>
-    <div class="matches">${S.matches[g].map((m,k)=>`<div class="match">
-      <span class="md">M${k+1}</span>
-      <span class="tn r" title="${esc(S.teams[g][m.h])}">${esc(S.teams[g][m.h])}</span>
-      ${sv(m.hs)}<span class="vs">–</span>${sv(m.as)}
-      <span class="tn" title="${esc(S.teams[g][m.a])}">${esc(S.teams[g][m.a])}</span></div>`).join('')}</div>
-    <p class="legend">M = Menang · S = Seri · K = Kalah · GM = Gol Memasukkan · GK = Gol Kemasukan · SG = Selisih Gol. Urutan: Poin → Selisih Gol → Gol Memasukkan.</p>
-  </section>`;
+    <div class="matches">${S.matches[g].map((m,k)=>`
+      <div class="match">
+        <span class="md">M${k+1}</span>
+        <span class="tn r" title="${esc(S.teams[g][m.h])}">${esc(S.teams[g][m.h])}</span>
+        ${scoreCell(`data-g="${g}" data-k="${k}" data-s="hs"`, m.hs, true, 'Skor kandang')}
+        <span class="vs">–</span>
+        ${scoreCell(`data-g="${g}" data-k="${k}" data-s="as"`, m.as, true, 'Skor tandang')}
+        <span class="tn" title="${esc(S.teams[g][m.a])}">${esc(S.teams[g][m.a])}</span>
+      </div>`).join('')}</div>`;
+}
+function thirdHTML(){
+  const tr = thirdRank();
+  const body = tr.list.map((r,i)=>{
+    const ok = tr.anyPlayed && i<2;
+    const st = !tr.anyPlayed ? '–' : (ok ? (tr.allDone?'<span class="tag">Lolos</span>':'<span class="tag soft">Sementara lolos</span>') : (tr.allDone?'Tersingkir':'–'));
+    return `<tr class="${ok?'q3':''}"><td>${i+1}</td><td class="tm">${esc(r.n)}</td><td>${r.g}</td>
+      <td>${r.P}</td><td>${r.GF}</td><td>${r.GD>0?'+'+r.GD:r.GD}</td><td class="pts">${r.Pts}</td><td class="tm">${st}</td></tr>`;
+  }).join('');
+  return `
+    <div class="card-head"><h2>Peringkat 3 Terbaik</h2><span class="badge ${tr.allDone?'done':''}">${tr.allDone?'Final':'Sementara'}</span></div>
+    <div class="table-wrap"><table class="stand">
+      <thead><tr><th>#</th><th class="tm">Tim</th><th>Grup</th><th>Main</th><th>GM</th><th>SG</th><th>Poin</th><th class="tm">Status</th></tr></thead>
+      <tbody>${body}</tbody></table></div>
+    <p class="legend">Dua tim peringkat 3 terbaik dari tiga grup ikut lolos ke perempat final. Urutan: Poin → Selisih Gol → Gol Memasukkan.</p>`;
 }
 function koCard(id,title,sub,p,extra){
-  const m = S.ko[id] || {}, ready = p.h.n && p.a.n, r = ready ? result(m) : null;
-  const row = (side,t) => `<div class="ko-row ${r===side?'win':''}">
+  const m = S.ko[id] || blankKO(), ready = !!(p.h.n && p.a.n), r = ready ? result(m) : null;
+  const row = (side,t) => `
+    <div class="ko-row ${r===side?'win':''}">
       <div class="nm ${t.n?'':'tbd'}">${t.n?esc(t.n):'Menunggu'}<small>${esc(t.tag)}</small></div>
-      ${ready?sv(m[side+'s']):'<span class="sv empty">–</span>'}</div>`;
-  const pen = ready && !blank(m.hs) && !blank(m.as) && +m.hs===+m.as && !blank(m.hp) && !blank(m.ap);
-  return `<div class="ko ${extra||''}"><div class="ko-head">${title}<span>${sub}</span></div>
-    ${row('h',p.h)}${row('a',p.a)}
-    ${pen?`<div class="pen-v">Adu penalti ${+m.hp} – ${+m.ap}</div>`:''}</div>`;
+      ${scoreCell(`data-ko="${id}" data-s="${side}s"`, m[side+'s'], ready)}
+    </div>`;
+  const tie = ready && !blank(m.hs) && !blank(m.as) && +m.hs===+m.as;
+  let pen = '';
+  if(tie && EDIT) pen = `<div class="pen">Adu penalti <span>${scoreCell(`data-ko="${id}" data-s="hp"`, m.hp, true, 'Penalti')} – ${scoreCell(`data-ko="${id}" data-s="ap"`, m.ap, true, 'Penalti')}</span></div>`;
+  else if(tie && !blank(m.hp) && !blank(m.ap)) pen = `<div class="pen-v">Adu penalti ${+m.hp} – ${+m.ap}</div>`;
+  return `<div class="ko ${extra||''}"><div class="ko-head">${title}<span>${sub}</span></div>${row('h',p.h)}${row('a',p.a)}${pen}</div>`;
+}
+function bracketHTML(k){
+  return `
+    <div class="col"><div class="col-title">Perempat Final</div>
+      ${koCard('qf1','PF 1','Juara A vs Peringkat 3',k.qf1)}
+      ${koCard('qf2','PF 2','Runner-up B vs Runner-up C',k.qf2)}
+      ${koCard('qf3','PF 3','Juara B vs Peringkat 3',k.qf3)}
+      ${koCard('qf4','PF 4','Juara C vs Runner-up A',k.qf4)}</div>
+    <div class="col"><div class="col-title">Semifinal</div>
+      ${koCard('sf1','Semifinal 1','PF 1 vs PF 2',k.sf1)}
+      ${koCard('sf2','Semifinal 2','PF 3 vs PF 4',k.sf2)}</div>
+    <div class="col"><div class="col-title">Final</div>
+      ${koCard('final','Final','Perebutan Juara 1',k.final,'final')}
+      <div class="col-title">Perebutan Tempat Ketiga</div>
+      ${koCard('third','Juara 3','Kalah SF 1 vs Kalah SF 2',k.third)}</div>`;
 }
 function podiumHTML(k){
   const rf = (k.final.h.n&&k.final.a.n) ? result(S.ko.final) : null;
@@ -251,23 +352,22 @@ function podiumHTML(k){
   const pod = (cls,medal,lbl,who) => `<div class="pod ${cls}"><div class="medal">${medal}</div><div class="lbl">${lbl}</div><div class="who">${who?esc(who):'—'}</div></div>`;
   return pod('p1','🏆','Juara 1',j1) + pod('p2','🥈','Juara 2',j2) + pod('p3','🥉','Juara 3',j3);
 }
+const BRACKET_NOTE = 'Lawan juara Grup A dan B dari peringkat 3 terbaik diatur agar tidak bertemu tim segrup: jika yang lolos peringkat 3 Grup A &amp; B → Juara A vs 3B, Juara B vs 3A; Grup A &amp; C → Juara A vs 3C, Juara B vs 3A; Grup B &amp; C → Juara A vs 3B, Juara B vs 3C. Skor imbang di babak gugur dilanjutkan adu penalti.';
+
+function valid(s){
+  return !!(s && s.teams && G.every(g=>Array.isArray(s.teams[g])&&s.teams[g].length===4) && s.matches && G.every(g=>Array.isArray(s.matches[g])&&s.matches[g].length===6) && s.ko);
+}
 function render(){
   document.getElementById('vTitle').textContent = S.name || 'Turnamen Futsal';
   document.title = S.name || 'Klasemen Futsal';
   document.getElementById('vSub').textContent = S.sub || '';
   document.getElementById('vPills').innerHTML = (S.info||[]).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join('');
+  KO_IDS.forEach(id=>{ if(!S.ko[id]) S.ko[id] = blankKO(); });
   const k = koPairs();
   document.getElementById('app').innerHTML = `
-    <div class="groups">${groupHTML('A')}${groupHTML('B')}</div>
-    <section class="card"><h2>Babak Gugur</h2><div class="bracket">
-      <div class="col"><div class="col-title">Semifinal</div>
-        ${koCard('sf1','Semifinal 1','Juara A vs Runner-up B',k.sf1)}
-        ${koCard('sf2','Semifinal 2','Juara B vs Runner-up A',k.sf2)}</div>
-      <div class="col"><div class="col-title">Final</div>
-        ${koCard('final','Final','Perebutan Juara 1',k.final,'final')}
-        <div class="col-title">Perebutan Tempat Ketiga</div>
-        ${koCard('third','Juara 3','Kalah SF 1 vs Kalah SF 2',k.third)}</div>
-    </div></section>
+    <div class="groups">${G.map(g=>`<section class="card">${groupHTML(g)}<p class="legend">M = Menang · S = Seri · K = Kalah · GM = Gol Memasukkan · GK = Gol Kemasukan · SG = Selisih Gol.</p></section>`).join('')}</div>
+    <section class="card third-card">${thirdHTML()}</section>
+    <section class="card"><h2>Babak Gugur</h2><div class="bracket">${bracketHTML(k)}</div><p class="legend">${BRACKET_NOTE}</p></section>
     <section class="card"><h2>Juara Turnamen</h2><div class="podium">${podiumHTML(k)}</div></section>`;
 }
 function fmtTime(iso){
@@ -282,7 +382,7 @@ async function load(){
     if(!r.ok) throw new Error(r.status);
     const txt = await r.text();
     const p = JSON.parse(txt);
-    if(!p.teams||!p.matches||!p.ko) throw new Error('format');
+    if(!valid(p)) throw new Error('format');
     if(txt !== lastJson){ lastJson = txt; S = p; render(); }
     dot.classList.remove('off');
     upd.textContent = 'Diperbarui otomatis' + (S.updatedAt ? ' · data terakhir ' + fmtTime(S.updatedAt) : '');
