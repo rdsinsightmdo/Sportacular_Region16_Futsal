@@ -94,7 +94,7 @@
   .final .ko-head span{color:#cfe6fb}
   .final{border-color:var(--mentari)}
 
-  .podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
+  .podium{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;text-align:center;max-width:760px;margin:0 auto}
   .pod{border:1px solid var(--line);border-radius:12px;padding:16px 8px}
   .pod .medal{font-size:30px}
   .pod .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -234,13 +234,13 @@ function defState(){
       A:PAIRS.map(p=>({h:p[0],a:p[1],hs:'',as:''})),
       B:PAIRS.map(p=>({h:p[0],a:p[1],hs:'',as:''}))
     },
-    ko:{sf1:blankKO(), sf2:blankKO(), third:blankKO(), final:blankKO()}
+    ko:{sf1:blankKO(), sf2:blankKO(), final:blankKO()}
   };
 }
 function valid(s){
   return s && s.teams && s.teams.A && s.teams.B && s.matches && s.matches.A && s.matches.B && s.ko && s.ko.sf1 && s.ko.final;
 }
-function fill(p){ const d=defState(); if(p.sub==null) p.sub=d.sub; if(!Array.isArray(p.info)) p.info=d.info; if(!p.ko.third) p.ko.third=blankKO(); if(!p.ko.sf2) p.ko.sf2=blankKO(); return p; }
+function fill(p){ const d=defState(); if(p.sub==null) p.sub=d.sub; if(!Array.isArray(p.info)) p.info=d.info; if(!p.ko.sf2) p.ko.sf2=blankKO(); return p; }
 let S = defState();
 let hasLocal = false;
 try{ const raw = localStorage.getItem(KEY); if(raw){ const p = JSON.parse(raw); if(valid(p)){ S = fill(p); hasLocal = true; } } }catch(e){}
@@ -364,21 +364,17 @@ function renderBracket(){
     <div class="col">
       <div class="col-title">Final</div>
       ${koCard('final','Final','Perebutan Juara 1',k.final,'final')}
-      <div class="col-title">Perebutan Tempat Ketiga</div>
-      ${koCard('third','Juara 3','Kalah SF 1 vs Kalah SF 2',k.third)}
     </div>`;
   renderPodium(k);
 }
 function renderPodium(k){
   k = k || koPairs();
   const rf = (k.final.h.n&&k.final.a.n) ? result(S.ko.final) : null;
-  const rt = (k.third.h.n&&k.third.a.n) ? result(S.ko.third) : null;
   const j1 = rf ? (rf==='h'?k.final.h:k.final.a).n : null;
   const j2 = rf ? (rf==='h'?k.final.a:k.final.h).n : null;
-  const j3 = rt ? (rt==='h'?k.third.h:k.third.a).n : null;
   const pod = (cls,medal,lbl,who) => `<div class="pod ${cls}"><div class="medal">${medal}</div><div class="lbl">${lbl}</div><div class="who">${who?esc(who):'—'}</div></div>`;
   document.getElementById('podium').innerHTML =
-    pod('p1','🏆','Juara 1',j1) + pod('p2','🥈','Juara 2',j2) + pod('p3','🥉','Juara 3',j3);
+    pod('p1','🏆','Juara 1',j1) + pod('p2','🥈','Juara 2',j2);
 }
 
 function renderAll(){
