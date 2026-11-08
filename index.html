@@ -94,7 +94,7 @@
   .final .ko-head span{color:#cfe6fb}
   .final{border-color:var(--mentari)}
 
-  .podium{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;text-align:center;max-width:760px;margin:0 auto}
+  .podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
   .pod{border:1px solid var(--line);border-radius:12px;padding:16px 8px}
   .pod .medal{font-size:30px}
   .pod .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
@@ -244,10 +244,12 @@ function koCard(id,title,sub,p,extra){
 }
 function podiumHTML(k){
   const rf = (k.final.h.n&&k.final.a.n) ? result(S.ko.final) : null;
+  const rt = (k.third.h.n&&k.third.a.n) ? result(S.ko.third) : null;
   const j1 = rf ? (rf==='h'?k.final.h:k.final.a).n : null;
   const j2 = rf ? (rf==='h'?k.final.a:k.final.h).n : null;
+  const j3 = rt ? (rt==='h'?k.third.h:k.third.a).n : null;
   const pod = (cls,medal,lbl,who) => `<div class="pod ${cls}"><div class="medal">${medal}</div><div class="lbl">${lbl}</div><div class="who">${who?esc(who):'—'}</div></div>`;
-  return pod('p1','🏆','Juara 1',j1) + pod('p2','🥈','Juara 2',j2);
+  return pod('p1','🏆','Juara 1',j1) + pod('p2','🥈','Juara 2',j2) + pod('p3','🥉','Juara 3',j3);
 }
 function render(){
   document.getElementById('vTitle').textContent = S.name || 'Turnamen Futsal';
@@ -263,7 +265,8 @@ function render(){
         ${koCard('sf2','Semifinal 2','Juara B vs Runner-up A',k.sf2)}</div>
       <div class="col"><div class="col-title">Final</div>
         ${koCard('final','Final','Perebutan Juara 1',k.final,'final')}
-        </div>
+        <div class="col-title">Perebutan Tempat Ketiga</div>
+        ${koCard('third','Juara 3','Kalah SF 1 vs Kalah SF 2',k.third)}</div>
     </div></section>
     <section class="card"><h2>Juara Turnamen</h2><div class="podium">${podiumHTML(k)}</div></section>`;
 }
